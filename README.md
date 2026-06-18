@@ -66,7 +66,10 @@ relativos à pasta do jogo.
 6. **Derrota** → tela de Game Over com o resumo final dos níveis da sua
    party. Você pode montar uma **nova party** (volta para a seleção) ou
    voltar ao **menu principal**.
+   
+![Tela de Luta](https://github.com/Cozierbarrel/Jogo-Divas/blob/main/__pycache__/Tela%20Luta.png)
 
+Imagem da Tela de Luta
 ---
 
 ## 4. Sistema de tipos (pedra-papel-tesoura)
@@ -97,9 +100,12 @@ atacante, do multiplicador do golpe e da `DEF` do defensor.
 | **Luísa Sonza** | Vocal | 95 | 12 | 11 | 13 | Dano baixo, mas o especial **"Penhasco"** aplica **veneno** (dano contínuo por 3 turnos). |
 | **Urias** | Performance | 65 | 23 | 7 | 22 | Maior ATK e SPD do jogo, porém o menor HP. Especial **"Cilada"** (x1.9) com cooldown curto. |
 
+![Personagens](https://github.com/Cozierbarrel/Jogo-Divas/blob/main/__pycache__/Tela%20Personagens.png)
+
 Os nomes dos golpes ("Zero", "Trevo (Tu)", "Envolver", "Bixa Travesty",
 "Penhasco", "Single" etc.) são inspirados em músicas conhecidas de cada
 artista.
+
 
 ---
 
@@ -107,7 +113,7 @@ artista.
 
 - A cada batalha, uma das **5 facções inimigas** é sorteada (inspiradas
   em capas de funk/piseiro/sertanejo: *Diário de um Cafajeste*, *Famoso
-  Imã*, *Relíquia do ZT*, *Peão Todo Tatuado*, *Eu Te Seguro*), trazendo
+  Imã*, *Relíquia do ZT*, *Peão Todo Tatuado*, *Eu Te Seguro*), que estão no topo do top 50 Brasil do Sporify, trazendo
   nomes de MCs/DJs/peões para os inimigos.
 - Cada inimigo recebe **tipo aleatório**, atributos e **dois golpes
   gerados proceduralmente** (nomes combinando palavras como "Paredão",
