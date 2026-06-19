@@ -31,9 +31,6 @@ class Batalha:
         self._nova_rodada_interna()
         self.avancar_turno()
 
-    # ------------------------------------------------------------------
-    # utilidades internas
-    # ------------------------------------------------------------------
     def todos_combatentes(self):
         return self.party + self.inimigos
 
@@ -56,11 +53,7 @@ class Batalha:
             return True
         return False
 
-    # ------------------------------------------------------------------
-    # API pública
-    # ------------------------------------------------------------------
     def aguardando_jogador(self):
-        """Retorna o Combatente do jogador esperando uma ação, ou None."""
         if self.terminada:
             return None
         if self.turno_idx < 0 or self.turno_idx >= len(self.ordem):
@@ -77,10 +70,6 @@ class Batalha:
         return [p for p in self.party if p.vivo]
 
     def avancar_turno(self):
-        """Processa turnos automaticamente (veneno, cargas, inimigos)
-        até chegar em um turno de jogador esperando ação, ou até a
-        batalha terminar."""
-
         self.turno_idx += 1
 
         seguranca = 0
@@ -117,7 +106,6 @@ class Batalha:
                     self.turno_idx += 1
                     continue
 
-            # ---- liberação de golpe carregado (ex: Zero da Liniker) ----
             if atual.carregando:
                 self._liberar_carga(atual)
                 if self._checar_fim():
@@ -125,7 +113,6 @@ class Batalha:
                 self.turno_idx += 1
                 continue
 
-            # ---- redução de contadores ----
             if atual.cooldown_especial > 0:
                 atual.cooldown_especial -= 1
             if atual.buff_spd_turnos > 0:
@@ -214,7 +201,6 @@ class Batalha:
             atacante.alvo_carga = alvo
             self.log.append("{} começa a se preparar para {}...".format(
                 atacante.nome, especial["nome"]))
-            # o cooldown só é definido quando o golpe é liberado
 
         elif efeito == "buff_spd":
             self._executar_ataque(atacante, especial, alvo)
@@ -231,7 +217,7 @@ class Batalha:
                 self.log.append("{} está envenenado(a)!".format(alvo.nome))
             atacante.cooldown_especial = especial["cooldown"]
 
-        else:  # "dano"
+        else: 
             self._executar_ataque(atacante, especial, alvo)
             atacante.cooldown_especial = especial["cooldown"]
 
