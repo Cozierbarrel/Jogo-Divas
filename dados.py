@@ -160,7 +160,7 @@ ORDEM_PERSONAGENS = ["liniker", "anavitoria", "anitta", "linn", "luisa", "urias"
 
 
 # ---------------------------------------------------------------------------
-# CENÁRIOS DE BATALHA (Pernambuco)
+# Cenários
 # ---------------------------------------------------------------------------
 CENARIOS = [
     {
@@ -187,7 +187,7 @@ CENARIOS = [
 
 
 # ---------------------------------------------------------------------------
-# FACÇÕES INIMIGAS - usadas para temar a batalha e nomear os adversários
+# IInimigos
 # ---------------------------------------------------------------------------
 FACCOES_INIMIGAS = [
     {
@@ -224,7 +224,7 @@ FACCOES_INIMIGAS = [
 
 
 # ---------------------------------------------------------------------------
-# VOCABULÁRIO PARA GERAÇÃO PROCEDURAL DE ATAQUES INIMIGOS
+# Feração automatica de inimigos
 # ---------------------------------------------------------------------------
 PREFIXOS_ATAQUE = [
     "Paredão", "Berro", "Trinca", "Refrão", "Grave", "Bonde", "Cria",
