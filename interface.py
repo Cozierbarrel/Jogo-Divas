@@ -61,13 +61,11 @@ _cache_imagens = {}
 
 
 def carregar_imagem(caminho):
-    """Carrega uma imagem do disco com cache (retorna Surface original)."""
     if caminho not in _cache_imagens:
         try:
             img = pygame.image.load(caminho)
             img = img.convert_alpha()
         except Exception:
-            # imagem de fallback (retângulo cinza) caso o arquivo não exista
             img = pygame.Surface((200, 200), pygame.SRCALPHA)
             img.fill((80, 80, 90, 255))
         _cache_imagens[caminho] = img
@@ -75,7 +73,6 @@ def carregar_imagem(caminho):
 
 
 def imagem_escalada(caminho, tamanho, suave=True):
-    """Carrega (com cache) e devolve a imagem já escalada para `tamanho`."""
     chave = (caminho, tamanho, suave)
     if chave not in _cache_imagens:
         original = carregar_imagem(caminho)
@@ -88,8 +85,6 @@ def imagem_escalada(caminho, tamanho, suave=True):
 
 
 def imagem_cobertura(caminho, tamanho):
-    """Escala a imagem para cobrir totalmente `tamanho` (estilo
-    `background-size: cover`), cortando o excesso e centralizando."""
     chave = ("cover", caminho, tamanho)
     if chave in _cache_imagens:
         return _cache_imagens[chave]
@@ -133,8 +128,6 @@ def desenhar_texto(tela, texto, fonte, cor, pos, centro=False, sombra=False):
 
 
 def quebrar_texto(texto, fonte, largura_max):
-    """Quebra `texto` em várias linhas para que cada uma caiba em
-    `largura_max` pixels com a fonte fornecida."""
     palavras = texto.split(" ")
     linhas = []
     linha_atual = ""
@@ -151,9 +144,7 @@ def quebrar_texto(texto, fonte, largura_max):
     return linhas
 
 
-# ---------------------------------------------------------------------------
-# PAINÉIS / RETÂNGULOS
-# ---------------------------------------------------------------------------
+
 def desenhar_painel(tela, rect, cor=PAINEL, borda_cor=None, borda_largura=2,
                      raio=10):
     superficie = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
@@ -163,9 +154,7 @@ def desenhar_painel(tela, rect, cor=PAINEL, borda_cor=None, borda_largura=2,
         pygame.draw.rect(tela, borda_cor, rect, borda_largura, border_radius=raio)
 
 
-# ---------------------------------------------------------------------------
-# BARRA DE VIDA / RECURSOS
-# ---------------------------------------------------------------------------
+
 def desenhar_barra(tela, x, y, largura, altura, fracao, cor_frente,
                     cor_fundo=(50, 50, 60), borda_cor=(230, 230, 230)):
     fracao = max(0.0, min(1.0, fracao))
