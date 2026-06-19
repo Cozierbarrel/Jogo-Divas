@@ -141,3 +141,7 @@ artista.
   muito HP, pois o dano continua mesmo se você atacar outro alvo.
 
 Bom jogo e... que vença a melhor diva! 🏆
+
+## Relatório de Desenvolvimento
+
+[Link](https://docs.google.com/document/d/12vT5S_2EGP5LN3siTg2fU08G1UlTTrqcxUOaLQGH_h4/edit?usp=sharing)
