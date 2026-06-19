@@ -14,7 +14,6 @@ from dados import (
 
 
 class Combatente:
-    """Representa qualquer participante da batalha (herói ou inimigo)."""
 
     def __init__(self, nome, tipo, hp_max, atk, defe, spd,
                  ataque_basico, especial=None, imagem=None,
@@ -195,10 +194,6 @@ def gerar_ataques_inimigo(tipo_base, rodada):
 
 
 def gerar_inimigos(rodada):
-    """Gera a facção e a lista de inimigos para a rodada atual.
-
-    A quantidade e os atributos dos inimigos escalam com a rodada,
-    tornando o jogo progressivamente mais difícil (loop infinito)."""
 
     faccao = random.choice(FACCOES_INIMIGAS)
 
@@ -245,8 +240,6 @@ def gerar_inimigos(rodada):
 # CÁLCULO DE DANO
 # ---------------------------------------------------------------------------
 def calcular_dano(atacante, defensor, ataque):
-    """Calcula o dano de um golpe levando em conta tipo, atributos e
-    uma pequena variação aleatória. Retorna (dano, multiplicador_tipo)."""
 
     tipo_ataque = ataque.get("tipo", atacante.tipo)
     mult_tipo = multiplicador_tipo(tipo_ataque, defensor.tipo)
