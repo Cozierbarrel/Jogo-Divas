@@ -32,6 +32,10 @@ EFEITO_LABEL = {
     "veneno": "Veneno",
     "buff_spd": "Agilidade",
     "carga": "Carga",
+    "dano_todos": "Dano a Todos",
+    "paralisar": "Paralisia",
+    "escudo_time": "Escudo Time",
+    "escudo_proprio": "Escudo",
 }
 
 
@@ -43,13 +47,21 @@ def iniciais_nome(nome):
 
 
 def tipo_alvo_de_acao(combatente, tipo_acao):
-    """Retorna 'inimigo', 'aliado' ou None (sem alvo) para a ação dada."""
+    """Retorna 'inimigo', 'aliado', 'automatico' ou None para a ação dada."""
     if tipo_acao == "atacar":
+        efeito_basico = combatente.ataque_basico.get("tipo_efeito", "dano")
+        if efeito_basico == "escudo_time":
+            return "automatico"   # Clarice: ataque básico aplica escudo sem alvo
         return "inimigo"
     if tipo_acao == "especial":
         especial = combatente.especial
-        if especial and especial.get("tipo_efeito") == "cura":
+        if especial is None:
+            return "inimigo"
+        efeito = especial.get("tipo_efeito", "dano")
+        if efeito == "cura":
             return "aliado"
+        if efeito in ("dano_todos", "escudo_time"):
+            return "automatico"   # sem seleção de alvo
         return "inimigo"
     return None
 
@@ -57,12 +69,16 @@ def tipo_alvo_de_acao(combatente, tipo_acao):
 # ---------------------------------------------------------------------------
 # LAYOUT - constantes de posicionamento
 # ---------------------------------------------------------------------------
-# -- Seleção de personagens --
+# -- Seleção de personagens (com scrollbar) --
 SEL_COLS = 3
-SEL_CARD_W, SEL_CARD_H = 380, 250
-SEL_GAP_X, SEL_GAP_Y = 25, 20
+SEL_CARD_W, SEL_CARD_H = 390, 235
+SEL_GAP_X, SEL_GAP_Y = 14, 12
 SEL_START_X = (LARGURA_TELA - (SEL_COLS * SEL_CARD_W + (SEL_COLS - 1) * SEL_GAP_X)) // 2
-SEL_START_Y = 95
+SEL_HEADER_H  = 80          # altura reservada para título + contador
+SEL_FOOTER_H  = 72          # altura reservada para botão confirmar
+SEL_SCROLL_W  = 14          # largura da scrollbar
+SEL_AREA_Y    = SEL_HEADER_H          # y onde a área rolável começa
+SEL_AREA_H    = ALTURA_TELA - SEL_HEADER_H - SEL_FOOTER_H  # altura visível
 
 # -- Batalha --
 BAT_TOPO_H = 70
@@ -108,12 +124,14 @@ class Jogo:
         self.evolucao_resultado = None  # (chave, incrementos) após escolha
 
         self.tempo_total = 0.0
+        self.sel_scroll_y = 0   # offset de scroll da tela de seleção (pixels)
 
     # ------------------------------------------------------------------
     # FLUXO ENTRE TELAS
     # ------------------------------------------------------------------
     def ir_para_selecao(self):
         self.ordem_selecao = []
+        self.sel_scroll_y = 0
         self.estado = "selecao"
 
     def iniciar_jogo(self):
@@ -177,12 +195,20 @@ class Jogo:
             elif self.estado == "gameover":
                 self.clique_gameover(pos)
 
+        elif evento.type == pygame.MOUSEWHEEL and self.estado == "selecao":
+            self._scroll_selecao(-evento.y * 40)
+
         elif evento.type == pygame.KEYDOWN:
             if evento.key in (pygame.K_RETURN, pygame.K_SPACE):
                 if self.estado == "menu":
                     self.ir_para_selecao()
                 elif self.estado == "transicao":
                     self.estado = "batalha"
+            elif self.estado == "selecao":
+                if evento.key == pygame.K_DOWN:
+                    self._scroll_selecao(60)
+                elif evento.key == pygame.K_UP:
+                    self._scroll_selecao(-60)
 
     # ------------------------------------------------------------------
     # TELA: MENU
@@ -201,7 +227,7 @@ class Jogo:
                         (LARGURA_TELA // 2, 270), centro=True, sombra=True)
 
         linhas = [
-            "Monte sua party com 4 das 6 estrelas disponíveis e enfrente",
+            "Monte sua party com 4 das 9 estrelas disponíveis e enfrente",
             "ondas infinitas de inimigos gerados aleatoriamente!",
             "",
             "Sistema de tipos: Letra > Vocal > Performance > Letra",
@@ -223,101 +249,168 @@ class Jogo:
                         (LARGURA_TELA // 2, ALTURA_TELA - 70), centro=True, sombra=True)
 
     # ------------------------------------------------------------------
-    # TELA: SELEÇÃO DE PERSONAGENS
+    # TELA: SELEÇÃO DE PERSONAGENS (com scrollbar)
     # ------------------------------------------------------------------
-    def _rect_card_selecao(self, indice):
+    def _sel_conteudo_total_h(self):
+        """Altura total do conteúdo rolável (todas as linhas de cards)."""
+        n_rows = math.ceil(len(ORDEM_PERSONAGENS) / SEL_COLS)
+        return n_rows * SEL_CARD_H + (n_rows - 1) * SEL_GAP_Y + 16  # +16 padding baixo
+
+    def _scroll_selecao(self, delta):
+        """Aplica delta de scroll e clipa nos limites."""
+        max_scroll = max(0, self._sel_conteudo_total_h() - SEL_AREA_H)
+        self.sel_scroll_y = max(0, min(self.sel_scroll_y + delta, max_scroll))
+
+    def _rect_card_selecao_virtual(self, indice):
+        """Retorna o rect do card no espaço 'virtual' (sem offset de scroll)."""
         col = indice % SEL_COLS
         row = indice // SEL_COLS
         x = SEL_START_X + col * (SEL_CARD_W + SEL_GAP_X)
-        y = SEL_START_Y + row * (SEL_CARD_H + SEL_GAP_Y)
+        y = 8 + row * (SEL_CARD_H + SEL_GAP_Y)       # y relativo ao conteúdo rolável
         return pygame.Rect(x, y, SEL_CARD_W, SEL_CARD_H)
 
+    def _rect_card_selecao_tela(self, indice):
+        """Converte para coordenadas de tela aplicando o scroll."""
+        r = self._rect_card_selecao_virtual(indice)
+        return r.move(0, SEL_AREA_Y - self.sel_scroll_y)
+
     def _rect_confirmar_selecao(self):
-        w, h = 260, 60
-        return pygame.Rect((LARGURA_TELA - w) // 2, SEL_START_Y + 2 * SEL_CARD_H + SEL_GAP_Y + 20, w, h)
+        w, h = 260, 52
+        return pygame.Rect((LARGURA_TELA - w) // 2,
+                            ALTURA_TELA - SEL_FOOTER_H + (SEL_FOOTER_H - h) // 2, w, h)
+
+    def _rect_scrollbar_track(self):
+        return pygame.Rect(LARGURA_TELA - SEL_SCROLL_W - 4,
+                            SEL_AREA_Y, SEL_SCROLL_W, SEL_AREA_H)
 
     def desenhar_selecao(self, tela):
         tela.fill((25, 25, 35))
 
+        # ---- cabeçalho fixo ----
         desenhar_texto(tela, "Escolha sua party (4 personagens)",
                         self.fontes.subtitulo, BRANCO,
-                        (LARGURA_TELA // 2, 40), centro=True, sombra=True)
-        desenhar_texto(tela, "Selecionados: {}/4".format(len(self.ordem_selecao)),
+                        (LARGURA_TELA // 2, 22), centro=True, sombra=True)
+        desenhar_texto(tela, "Selecionados: {}/4  •  Role para ver todos".format(
+                            len(self.ordem_selecao)),
                         self.fontes.normal, AMARELO,
-                        (LARGURA_TELA // 2, 75), centro=True)
+                        (LARGURA_TELA // 2, 56), centro=True)
+
+        # ---- área rolável: criamos uma surface de clipping ----
+        area_clip = pygame.Rect(0, SEL_AREA_Y, LARGURA_TELA - SEL_SCROLL_W - 6, SEL_AREA_H)
+        tela.set_clip(area_clip)
 
         for i, chave in enumerate(ORDEM_PERSONAGENS):
             dados_p = PERSONAGENS[chave]
-            rect = self._rect_card_selecao(i)
-            selecionado = chave in self.ordem_selecao
+            rect = self._rect_card_selecao_tela(i)
 
+            # só desenha se está (pelo menos parcialmente) visível
+            if rect.bottom < SEL_AREA_Y or rect.top > SEL_AREA_Y + SEL_AREA_H:
+                continue
+
+            selecionado = chave in self.ordem_selecao
             cor_tipo = CORES_TIPO[dados_p["tipo"]]
             cor_borda = AMARELO if selecionado else cor_tipo
             espessura = 4 if selecionado else 2
 
             desenhar_painel(tela, rect, cor=(35, 35, 50, 230),
-                             borda_cor=cor_borda, borda_largura=espessura, raio=14)
+                             borda_cor=cor_borda, borda_largura=espessura, raio=12)
 
             # retrato
-            ret_img = imagem_cobertura(dados_p["imagem"], (110, 130))
-            img_pos = (rect.x + 15, rect.y + 15)
+            ret_img = imagem_cobertura(dados_p["imagem"], (100, 120))
+            img_pos = (rect.x + 10, rect.y + 10)
             tela.blit(ret_img, img_pos)
-            pygame.draw.rect(tela, cor_tipo, (img_pos[0], img_pos[1], 110, 130), 2)
+            pygame.draw.rect(tela, cor_tipo, (img_pos[0], img_pos[1], 100, 120), 2)
 
-            tx = rect.x + 140
+            tx = rect.x + 122
             desenhar_texto(tela, dados_p["nome"], self.fontes.grande, BRANCO,
-                            (tx, rect.y + 15))
+                            (tx, rect.y + 10))
 
             # selo de tipo
-            selo_rect = pygame.Rect(tx, rect.y + 50, 120, 26)
+            selo_rect = pygame.Rect(tx, rect.y + 42, 120, 24)
             pygame.draw.rect(tela, cor_tipo, selo_rect, border_radius=6)
             desenhar_texto(tela, dados_p["tipo"], self.fontes.pequena, PRETO,
                             selo_rect.center, centro=True)
 
-            # status base
+            # stats base
             desenhar_texto(
                 tela,
                 "HP {}  ATK {}  DEF {}  SPD {}".format(
                     dados_p["hp"], dados_p["atk"], dados_p["defe"], dados_p["spd"]),
-                self.fontes.pequena, CINZA_CLARO, (tx, rect.y + 85))
+                self.fontes.minuscula, CINZA_CLARO, (tx, rect.y + 74))
 
             ab = dados_p["ataque_basico"]
             es = dados_p["especial"]
             desenhar_texto(
                 tela, "Básico: {} ({})".format(ab["nome"], ab["tipo"]),
-                self.fontes.minuscula, CINZA_CLARO, (tx, rect.y + 112))
+                self.fontes.minuscula, CINZA_CLARO, (tx, rect.y + 95))
             desenhar_texto(
-                tela, "Especial: {} - {}".format(es["nome"], EFEITO_LABEL.get(es.get("tipo_efeito"), "")),
-                self.fontes.minuscula, CINZA_CLARO, (tx, rect.y + 132))
+                tela, "Esp: {} — {}".format(
+                    es["nome"], EFEITO_LABEL.get(es.get("tipo_efeito"), "Dano")),
+                self.fontes.minuscula, CINZA_CLARO, (tx, rect.y + 113))
 
-            # descrição
-            linhas = quebrar_texto(dados_p["descricao"], self.fontes.minuscula, SEL_CARD_W - 30)
-            yy = rect.y + 155
-            for linha in linhas[:4]:
+            # descrição (até 3 linhas)
+            linhas_desc = quebrar_texto(dados_p["descricao"], self.fontes.minuscula,
+                                         SEL_CARD_W - 26)
+            yy = rect.y + 136
+            for linha in linhas_desc[:3]:
                 desenhar_texto(tela, linha, self.fontes.minuscula, (210, 210, 220),
-                                (rect.x + 15, yy))
-                yy += 18
+                                (rect.x + 10, yy))
+                yy += 17
 
-        # botão confirmar
+            # badge "✓ Selecionado"
+            if selecionado:
+                badge_rect = pygame.Rect(rect.right - 120, rect.y + 8, 112, 24)
+                pygame.draw.rect(tela, AMARELO, badge_rect, border_radius=6)
+                desenhar_texto(tela, "✓ Selecionado", self.fontes.minuscula, PRETO,
+                                badge_rect.center, centro=True)
+
+        tela.set_clip(None)
+
+        # ---- scrollbar ----
+        conteudo_h = self._sel_conteudo_total_h()
+        track = self._rect_scrollbar_track()
+        pygame.draw.rect(tela, (40, 40, 55), track, border_radius=7)
+
+        if conteudo_h > SEL_AREA_H:
+            thumb_ratio = SEL_AREA_H / conteudo_h
+            thumb_h = max(30, int(track.height * thumb_ratio))
+            scroll_ratio = self.sel_scroll_y / (conteudo_h - SEL_AREA_H)
+            thumb_y = track.y + int((track.height - thumb_h) * scroll_ratio)
+            thumb_rect = pygame.Rect(track.x + 2, thumb_y, SEL_SCROLL_W - 4, thumb_h)
+            pygame.draw.rect(tela, (110, 120, 160), thumb_rect, border_radius=5)
+            pygame.draw.rect(tela, (150, 160, 210), thumb_rect, 1, border_radius=5)
+
+        # ---- linha separadora entre área rolável e rodapé ----
+        pygame.draw.line(tela, (55, 55, 70),
+                          (0, ALTURA_TELA - SEL_FOOTER_H),
+                          (LARGURA_TELA, ALTURA_TELA - SEL_FOOTER_H), 1)
+
+        # ---- rodapé fixo com botão confirmar ----
         rect_confirmar = self._rect_confirmar_selecao()
         ativo = len(self.ordem_selecao) == 4
         botao = Botao(rect_confirmar, "Confirmar party",
-                       cor=(70, 150, 90) if ativo else (60, 60, 70),
+                       cor=(70, 150, 90) if ativo else (55, 55, 70),
                        cor_hover=(90, 190, 110), ativo=ativo)
         botao.desenhar(tela, self.fontes.grande, pygame.mouse.get_pos())
 
     def clique_selecao(self, pos):
+        # clique no botão confirmar (rodapé fixo)
+        if len(self.ordem_selecao) == 4 and self._rect_confirmar_selecao().collidepoint(pos):
+            self.iniciar_jogo()
+            return
+
+        # clique em card (só se dentro da área rolável)
+        if not (SEL_AREA_Y <= pos[1] <= SEL_AREA_Y + SEL_AREA_H):
+            return
+
         for i, chave in enumerate(ORDEM_PERSONAGENS):
-            rect = self._rect_card_selecao(i)
+            rect = self._rect_card_selecao_tela(i)
             if rect.collidepoint(pos):
                 if chave in self.ordem_selecao:
                     self.ordem_selecao.remove(chave)
                 elif len(self.ordem_selecao) < 4:
                     self.ordem_selecao.append(chave)
                 return
-
-        if len(self.ordem_selecao) == 4 and self._rect_confirmar_selecao().collidepoint(pos):
-            self.iniciar_jogo()
 
     # ------------------------------------------------------------------
     # TELA: TRANSIÇÃO ENTRE BATALHAS
@@ -444,6 +537,15 @@ class Jogo:
         desenhar_texto(tela, "{}/{}".format(combatente.hp, combatente.hp_max),
                         self.fontes.minuscula, BRANCO, (tx + 4, rect.y + 67))
 
+        # barra de escudo (se houver)
+        escudo_val = getattr(combatente, "escudo", 0)
+        if escudo_val > 0 and combatente.vivo:
+            frac_esc = min(1.0, escudo_val / combatente.hp_max)
+            desenhar_barra(tela, tx, rect.y + 86, barra_largura, 8, frac_esc,
+                            (120, 200, 255), cor_fundo=(30, 30, 50), borda_cor=(80, 160, 220))
+            desenhar_texto(tela, "🛡{}".format(escudo_val), self.fontes.minuscula,
+                            (120, 200, 255), (tx + 4, rect.y + 84))
+
         # status extras
         status_textos = []
         if not combatente.vivo:
@@ -457,12 +559,16 @@ class Jogo:
                 status_textos.append(("Ágil x{}".format(combatente.buff_spd_turnos), VERDE))
             if combatente.carregando:
                 status_textos.append(("Carregando...", AMARELO))
+            if getattr(combatente, "paralisia_turnos", 0) > 0:
+                status_textos.append(("DIVAAAAA 😍", (255, 180, 230)))
+            if getattr(combatente, "escudo", 0) > 0:
+                status_textos.append(("🛡 {}".format(combatente.escudo), (120, 200, 255)))
             if eh_jogador and combatente.cooldown_especial > 0:
                 status_textos.append(("CD especial: {}".format(combatente.cooldown_especial), CINZA_CLARO))
 
         sx = tx
         sy = rect.y + 95
-        for texto, cor in status_textos[:2]:
+        for texto, cor in status_textos[:3]:
             largura = self.fontes.minuscula.size(texto)[0] + 12
             pygame.draw.rect(tela, (0, 0, 0, 140), (sx, sy, largura, 20), border_radius=5)
             desenhar_texto(tela, texto, self.fontes.minuscula, cor, (sx + 6, sy + 2))
@@ -638,6 +744,12 @@ class Jogo:
             return
 
         tipo_alvo = tipo_alvo_de_acao(atual, tipo_acao)
+
+        # ações automáticas: dano_todos, escudo_time, ataque básico da Clarice
+        if tipo_alvo == "automatico":
+            b.executar_acao_jogador(tipo_acao, None)
+            return
+
         if tipo_alvo == "inimigo":
             candidatos = b.inimigos_vivos()
         else:
@@ -648,7 +760,6 @@ class Jogo:
         elif len(candidatos) > 1:
             self.alvo_pendente = tipo_acao
         else:
-            # sem alvo válido (não deveria ocorrer)
             self.alvo_pendente = None
 
     def clique_batalha(self, pos):
@@ -861,6 +972,10 @@ class Jogo:
 
 def main():
     pygame.init()
+    try:
+        pygame.mixer.init()
+    except Exception:
+        pass  # sem áudio não quebra o jogo
     tela = pygame.display.set_mode((LARGURA_TELA, ALTURA_TELA))
     pygame.display.set_caption("Batalha das Divas - Edição Pernambuco")
     relogio = pygame.time.Clock()

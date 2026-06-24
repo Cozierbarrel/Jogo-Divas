@@ -33,6 +33,10 @@ class Combatente:
         self.eh_jogador = eh_jogador
         self.chave = chave  # chave do dicionário PERSONAGENS (apenas heróis)
 
+        # sons específicos do personagem (apenas heróis)
+        self.som_dano = None
+        self.som_cura = None
+
         # ---- estado de batalha (reiniciado a cada batalha) ----
         self.vivo = True
         self.defendendo = False
@@ -43,6 +47,8 @@ class Combatente:
         self.buff_spd_mult = 1.0
         self.carregando = False
         self.alvo_carga = None
+        self.escudo = 0          # pontos de escudo (absorve dano antes do HP)
+        self.paralisia_turnos = 0  # turnos de paralisia (não pode agir)
 
     # ------------------------------------------------------------------
     def spd_efetivo(self):
@@ -53,15 +59,29 @@ class Combatente:
     def receber_dano(self, dano):
         if self.defendendo:
             dano = max(1, dano // 2)
-        self.hp = max(0, self.hp - dano)
-        if self.hp <= 0:
-            self.vivo = False
+        # escudo absorve dano primeiro
+        if self.escudo > 0:
+            absorvido = min(self.escudo, dano)
+            self.escudo -= absorvido
+            dano -= absorvido
+        if dano > 0:
+            self.hp = max(0, self.hp - dano)
+            if self.hp <= 0:
+                self.vivo = False
         return dano
 
     def curar(self, valor):
         antes = self.hp
         self.hp = min(self.hp_max, self.hp + valor)
         return self.hp - antes
+
+    def adicionar_escudo(self, valor):
+        """Adiciona pontos de escudo ao combatente."""
+        self.escudo = min(self.hp_max, self.escudo + valor)
+        return valor
+
+    def aplicar_paralisia(self, turnos):
+        self.paralisia_turnos = turnos
 
     def aplicar_veneno(self, dano, turnos):
         self.veneno_dano = dano
@@ -96,6 +116,8 @@ class Combatente:
         self.buff_spd_mult = 1.0
         self.carregando = False
         self.alvo_carga = None
+        self.escudo = 0
+        self.paralisia_turnos = 0
 
 
 # ---------------------------------------------------------------------------
@@ -112,7 +134,7 @@ def criar_personagem(chave, bonus=None):
     defe = base["defe"] + bonus.get("defe", 0)
     spd = base["spd"] + bonus.get("spd", 0)
 
-    return Combatente(
+    c = Combatente(
         nome=base["nome"],
         tipo=base["tipo"],
         hp_max=hp_max,
@@ -125,6 +147,9 @@ def criar_personagem(chave, bonus=None):
         eh_jogador=True,
         chave=chave,
     )
+    c.som_dano = base.get("som_dano")
+    c.som_cura = base.get("som_cura")
+    return c
 
 
 def bonus_padrao():
@@ -189,6 +214,12 @@ def gerar_ataques_inimigo(tipo_base, rodada):
         especial["tipo_efeito"] = "veneno"
         especial["veneno_dano"] = max(3, int(4 + (rodada - 1) * 0.6))
         especial["veneno_turnos"] = 2
+
+    # A partir da rodada 5, inimigos podem usar escudo no especial
+    chance_escudo = min((rodada - 5) * 0.08, 0.40) if rodada >= 5 else 0
+    if especial["tipo_efeito"] == "dano" and random.random() < chance_escudo:
+        especial["tipo_efeito"] = "escudo_proprio"
+        especial["escudo_percent"] = round(random.uniform(0.10, 0.25), 2)
 
     return ataque_basico, especial
 

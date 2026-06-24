@@ -54,6 +54,63 @@ def multiplicador_tipo(tipo_ataque, tipo_defensor):
 #                  personagem, libera um golpe devastador automaticamente
 # ---------------------------------------------------------------------------
 PERSONAGENS = {
+    "pabllo": {
+        "nome": "Pabllo Vittar",
+        "tipo": "Performance",
+        "imagem": os.path.join(ASSETS_DIR, "personagens", "pabllo.png"),
+        "hp": 110, "atk": 18, "defe": 13, "spd": 16,
+        "ataque_basico": {
+            "nome": "Não Paro Não", "tipo": "Performance", "mult": 1.0,
+            "tipo_efeito": "dano",
+        },
+        "especial": {
+            "nome": "K.O. Vittar", "tipo": "Performance", "mult": 1.3,
+            "cooldown": 4, "tipo_efeito": "dano_todos",
+            "som_especial": os.path.join(ASSETS_DIR, "sons", "Pabllo_Especial.wav"),
+        },
+        "som_dano": os.path.join(ASSETS_DIR, "sons", "Pabllo_dano.mp3"),
+        "som_cura": os.path.join(ASSETS_DIR, "sons", "Pabllo_Cura.wav"),
+        "descricao": "Rainha da Performance! Seu especial 'K.O. Vittar' atinge "
+                      "TODOS os inimigos ao mesmo tempo com dano multiplicado. "
+                      "Também possui sons únicos para dano e cura.",
+    },
+    "gloria": {
+        "nome": "Gloria Groove",
+        "tipo": "Vocal",
+        "imagem": os.path.join(ASSETS_DIR, "personagens", "gloria_groove.png"),
+        "hp": 105, "atk": 16, "defe": 14, "spd": 11,
+        "ataque_basico": {
+            "nome": "Coisa Boa", "tipo": "Vocal", "mult": 1.0,
+            "tipo_efeito": "dano",
+        },
+        "especial": {
+            "nome": "DIVAAAAA", "tipo": "Vocal", "mult": 1.1,
+            "cooldown": 3, "tipo_efeito": "paralisar",
+            "paralisia_turnos": 1,
+        },
+        "descricao": "Vocal poderoso e presença de diva! O especial 'DIVAAAAA' "
+                      "paralisa um inimigo por 1 turno além de causar dano — "
+                      "o alvo não pode agir enquanto estiver sob o efeito.",
+    },
+    "clarice": {
+        "nome": "Clarice Falcão",
+        "tipo": "Letra",
+        "imagem": os.path.join(ASSETS_DIR, "personagens", "clarice_falcao.png"),
+        "hp": 90, "atk": 13, "defe": 10, "spd": 13,
+        "ataque_basico": {
+            "nome": "Fui Fácil", "tipo": "Letra", "mult": 0.85,
+            "tipo_efeito": "escudo_time",
+            "escudo_percent": 0.05,
+        },
+        "especial": {
+            "nome": "Redoma", "tipo": "Letra", "cooldown": 3,
+            "tipo_efeito": "escudo_time",
+            "escudo_percent": 0.20,
+        },
+        "descricao": "Letras inteligentes e protetora do time! Cada ataque básico "
+                      "gera um escudo de 5% do HP máximo para todos os aliados. "
+                      "O especial 'Redoma' cria escudos de 20% do HP máx de cada um.",
+    },
     "liniker": {
         "nome": "Liniker",
         "tipo": "Vocal",
@@ -156,7 +213,7 @@ PERSONAGENS = {
 }
 
 # Ordem fixa usada na tela de seleção
-ORDEM_PERSONAGENS = ["liniker", "anavitoria", "anitta", "linn", "luisa", "urias"]
+ORDEM_PERSONAGENS = ["pabllo", "gloria", "clarice", "liniker", "anavitoria", "anitta", "linn", "luisa", "urias"]
 
 
 # ---------------------------------------------------------------------------

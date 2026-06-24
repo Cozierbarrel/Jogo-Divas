@@ -5,8 +5,27 @@ lê `self.log` para mostrar mensagens na tela.
 
 import random
 
+import pygame
+
 from entidades import gerar_inimigos, calcular_dano
 from dados import CENARIOS
+
+# ---------------------------------------------------------------------------
+# Utilitário de som
+# ---------------------------------------------------------------------------
+_cache_sons = {}
+
+
+def _tocar_som(caminho):
+    """Toca um arquivo de som sem bloquear; usa cache para evitar recarregamentos."""
+    if not caminho:
+        return
+    try:
+        if caminho not in _cache_sons:
+            _cache_sons[caminho] = pygame.mixer.Sound(caminho)
+        _cache_sons[caminho].play()
+    except Exception:
+        pass  # sem som não interrompe o jogo
 
 
 class Batalha:
@@ -106,6 +125,14 @@ class Batalha:
                     self.turno_idx += 1
                     continue
 
+            # ---- paralisia (DIVAAAAA) ----
+            if atual.paralisia_turnos > 0:
+                atual.paralisia_turnos -= 1
+                self.log.append("{} está paralisado(a) e não pode agir! ({} turno(s) restantes)".format(
+                    atual.nome, atual.paralisia_turnos))
+                self.turno_idx += 1
+                continue
+
             if atual.carregando:
                 self._liberar_carga(atual)
                 if self._checar_fim():
@@ -139,7 +166,14 @@ class Batalha:
             atual.defendendo = True
             self.log.append("{} se prepara para defender!".format(atual.nome))
         elif tipo_acao == "atacar":
-            self._executar_ataque(atual, atual.ataque_basico, alvo)
+            efeito_basico = atual.ataque_basico.get("tipo_efeito", "dano")
+            if efeito_basico == "escudo_time":
+                # Clarice: ataque básico gera escudo + dano em inimigo aleatório
+                if alvo is not None:
+                    self._executar_ataque(atual, atual.ataque_basico, alvo)
+                self._aplicar_escudo_time(atual, atual.ataque_basico.get("escudo_percent", 0.05))
+            else:
+                self._executar_ataque(atual, atual.ataque_basico, alvo)
         elif tipo_acao == "especial":
             self._executar_especial(atual, alvo)
 
@@ -162,6 +196,10 @@ class Batalha:
             dano, mult = calcular_dano(atacante, alvo, ataque)
             recebido = alvo.receber_dano(dano)
             total += recebido
+
+            # som de dano do herói (apenas se recebeu dano real)
+            if recebido > 0 and alvo.eh_jogador and getattr(alvo, "som_dano", None):
+                _tocar_som(alvo.som_dano)
 
             sufixo = ""
             if mult > 1.0:
@@ -192,8 +230,61 @@ class Batalha:
                 alvo = atacante
             valor = int(alvo.hp_max * especial.get("cura_percent", 0.3))
             curado = alvo.curar(valor)
+            # som de cura do herói alvo
+            if alvo.eh_jogador and getattr(alvo, "som_cura", None):
+                _tocar_som(alvo.som_cura)
             self.log.append("{} usa {} e recupera {} de HP de {}!".format(
                 atacante.nome, especial["nome"], curado, alvo.nome))
+            atacante.cooldown_especial = especial["cooldown"]
+
+        elif efeito == "dano_todos":
+            # Pabllo Vittar: atinge todos os inimigos simultaneamente
+            oponentes = self.inimigos if atacante.eh_jogador else self.party
+            alvos_vivos = [o for o in oponentes if o.vivo]
+            if not alvos_vivos:
+                return
+            som_especial = especial.get("som_especial")
+            if som_especial:
+                _tocar_som(som_especial)
+            self.log.append("{} usa {} em TODOS os inimigos!".format(
+                atacante.nome, especial["nome"]))
+            for alvo_i in alvos_vivos:
+                self._executar_ataque(atacante, especial, alvo_i)
+            atacante.cooldown_especial = especial["cooldown"]
+
+        elif efeito == "paralisar":
+            # Gloria Groove: causa dano e paralisa o alvo
+            if alvo is None or not alvo.vivo:
+                return
+            self._executar_ataque(atacante, especial, alvo)
+            if alvo.vivo and not alvo.eh_jogador:
+                turnos = especial.get("paralisia_turnos", 1)
+                alvo.aplicar_paralisia(turnos)
+                self.log.append("{} está PARALISADO(A) pelo efeito DIVAAAAA! 😍".format(alvo.nome))
+            atacante.cooldown_especial = especial["cooldown"]
+
+        elif efeito == "escudo_time":
+            # Clarice Falcão: cria escudo para todo o time aliado
+            aliados = self.party if atacante.eh_jogador else self.inimigos
+            aliados_vivos = [a for a in aliados if a.vivo]
+            percent = especial.get("escudo_percent", 0.05)
+            nomes_com_escudo = []
+            for aliado in aliados_vivos:
+                valor_escudo = max(1, int(aliado.hp_max * percent))
+                aliado.adicionar_escudo(valor_escudo)
+                nomes_com_escudo.append("{} (+{})".format(aliado.nome, valor_escudo))
+            self.log.append("{} usa {} — Escudos criados: {}!".format(
+                atacante.nome, especial["nome"], ", ".join(nomes_com_escudo)))
+            if "cooldown" in especial:
+                atacante.cooldown_especial = especial["cooldown"]
+
+        elif efeito == "escudo_proprio":
+            # Inimigos avançados: cria escudo para si mesmo
+            percent = especial.get("escudo_percent", 0.15)
+            valor_escudo = max(1, int(atacante.hp_max * percent))
+            atacante.adicionar_escudo(valor_escudo)
+            self.log.append("{} usa {} e ganha um escudo de {}!".format(
+                atacante.nome, especial["nome"], valor_escudo))
             atacante.cooldown_especial = especial["cooldown"]
 
         elif efeito == "carga":
@@ -239,6 +330,19 @@ class Batalha:
         atacante.carregando = False
         atacante.alvo_carga = None
         atacante.cooldown_especial = especial["cooldown"]
+
+    def _aplicar_escudo_time(self, atacante, percent):
+        """Aplica escudo a todos os aliados vivos do atacante."""
+        aliados = self.party if atacante.eh_jogador else self.inimigos
+        aliados_vivos = [a for a in aliados if a.vivo]
+        partes = []
+        for aliado in aliados_vivos:
+            valor = max(1, int(aliado.hp_max * percent))
+            aliado.adicionar_escudo(valor)
+            partes.append("{} (+{})".format(aliado.nome, valor))
+        if partes:
+            self.log.append("{} cria mini-escudos para o time: {}!".format(
+                atacante.nome, ", ".join(partes)))
 
     def _executar_turno_inimigo(self, inimigo):
         alvos_possiveis = self.party_vivos()
