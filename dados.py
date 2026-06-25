@@ -294,3 +294,197 @@ SUFIXOS_ATAQUE = [
     "Sinistro", "do Grave", "Maluco", "Treme-Treme", "Desgovernado",
     "Sem Freio", "180 BPM", "da Madrugada",
 ]
+
+# ---------------------------------------------------------------------------
+# RODADAS DE BOSS (a cada 5 rodadas)
+# ---------------------------------------------------------------------------
+BOSS_RODADA = 5   # boss aparece a cada múltiplo desta rodada
+
+BOSSES = [
+    {
+        "chave": "neiff",
+        "nome": "Neiff",
+        "imagem": os.path.join(ASSETS_DIR, "bosses", "neiff.png"),
+        "tipo": "Performance",
+        "hp": 380, "atk": 28, "defe": 18, "spd": 20,
+        "ataque_basico": {
+            "nome": "Flow Mortal", "tipo": "Performance", "mult": 1.1, "tipo_efeito": "dano",
+        },
+        "especial": {
+            "nome": "Neiff Total", "tipo": "Performance", "mult": 1.5,
+            "cooldown": 3, "tipo_efeito": "dano_todos",
+        },
+        "fala_entrada": "Vocês acham que podem me vencer? Neiff não perde pra ninguém!",
+        "fala_derrota": "Impossível... fui derrubado pelas divas...",
+    },
+    {
+        "chave": "oruam",
+        "nome": "Oruam",
+        "imagem": os.path.join(ASSETS_DIR, "bosses", "oruam.png"),
+        "tipo": "Letra",
+        "hp": 420, "atk": 32, "defe": 14, "spd": 18,
+        "ataque_basico": {
+            "nome": "Letra de Favela", "tipo": "Letra", "mult": 1.2, "tipo_efeito": "dano",
+        },
+        "especial": {
+            "nome": "Baile do Oruam", "tipo": "Letra", "mult": 1.0,
+            "cooldown": 3, "tipo_efeito": "veneno",
+            "veneno_dano": 18, "veneno_turnos": 3,
+        },
+        "fala_entrada": "Chegou o filho do Macarrão! Prepara o choro.",
+        "fala_derrota": "Respeita as divas, mano...",
+    },
+    {
+        "chave": "belo",
+        "nome": "Belo",
+        "imagem": os.path.join(ASSETS_DIR, "bosses", "belo.png"),
+        "tipo": "Vocal",
+        "hp": 460, "atk": 24, "defe": 26, "spd": 10,
+        "ataque_basico": {
+            "nome": "Sorriso Maroto", "tipo": "Vocal", "mult": 1.0, "tipo_efeito": "dano",
+        },
+        "especial": {
+            "nome": "Escudo do Charme", "tipo": "Vocal", "cooldown": 3,
+            "tipo_efeito": "escudo_proprio", "escudo_percent": 0.30,
+        },
+        "fala_entrada": "Belo está aqui e não vai embora fácil não, moçada!",
+        "fala_derrota": "As divas sempre vencem... que voz poderosa.",
+    },
+    {
+        "chave": "livinho",
+        "nome": "MC Livinho",
+        "imagem": os.path.join(ASSETS_DIR, "bosses", "livinho.png"),
+        "tipo": "Performance",
+        "hp": 350, "atk": 30, "defe": 16, "spd": 26,
+        "ataque_basico": {
+            "nome": "Cheguei", "tipo": "Performance", "mult": 1.0, "tipo_efeito": "dano",
+        },
+        "especial": {
+            "nome": "Pesadelo Funk", "tipo": "Performance", "mult": 1.6,
+            "cooldown": 2, "tipo_efeito": "paralisar", "paralisia_turnos": 1,
+        },
+        "fala_entrada": "Livinho no beat! Vou paralisar vocês todas!",
+        "fala_derrota": "Eita... fui travado pelas divas.",
+    },
+    {
+        "chave": "paiva",
+        "nome": "Paiva",
+        "imagem": os.path.join(ASSETS_DIR, "bosses", "paiva.png"),
+        "tipo": "Letra",
+        "hp": 500, "atk": 26, "defe": 22, "spd": 14,
+        "ataque_basico": {
+            "nome": "Estocada Paiva", "tipo": "Letra", "mult": 1.1,
+            "tipo_efeito": "dano", "golpes": 2,
+        },
+        "especial": {
+            "nome": "Carga Total Paiva", "tipo": "Letra", "mult": 3.0,
+            "cooldown": 4, "tipo_efeito": "carga",
+        },
+        "fala_entrada": "Sou o boss final! Nenhuma diva me derruba!",
+        "fala_derrota": "As divas são imbatíveis... respeito.",
+    },
+]
+
+# Mapeamento rodada → boss (ciclo de 5 em 5)
+def boss_da_rodada(rodada):
+    """Retorna o dicionário do boss se a rodada for múltipla de BOSS_RODADA, senão None."""
+    if rodada % BOSS_RODADA == 0:
+        idx = (rodada // BOSS_RODADA - 1) % len(BOSSES)
+        return BOSSES[idx]
+    return None
+
+
+# ---------------------------------------------------------------------------
+# ITENS CONSUMÍVEIS
+# ---------------------------------------------------------------------------
+ITENS = {
+    "torta_amora": {
+        "nome": "Torta de Amora",
+        "imagem": os.path.join(ASSETS_DIR, "itens", "torta_amora.png"),
+        "descricao": "Cura 40% do HP máx de um aliado. Deliciosa e nutritiva.",
+        "tipo_efeito": "cura",
+        "cura_percent": 0.40,
+        "alvo": "aliado",
+        "max_estoque": 3,
+    },
+    "cha": {
+        "nome": "Chá Revigorante",
+        "imagem": os.path.join(ASSETS_DIR, "itens", "cha.png"),
+        "descricao": "Remove veneno e paralisia de um aliado.",
+        "tipo_efeito": "antidoto",
+        "alvo": "aliado",
+        "max_estoque": 3,
+    },
+    "pocao_rajadao": {
+        "nome": "Poção Rajadão",
+        "imagem": os.path.join(ASSETS_DIR, "itens", "pocao_rajadao.png"),
+        "descricao": "Zera o cooldown do especial de um aliado imediatamente.",
+        "tipo_efeito": "reset_cooldown",
+        "alvo": "aliado",
+        "max_estoque": 2,
+    },
+    "luva_ko": {
+        "nome": "Luva K.O.",
+        "imagem": os.path.join(ASSETS_DIR, "itens", "luva_ko.png"),
+        "descricao": "Causa dano fixo de 60 pontos a um inimigo. Sem defesa.",
+        "tipo_efeito": "dano_fixo",
+        "dano": 60,
+        "alvo": "inimigo",
+        "max_estoque": 2,
+    },
+    "puzzy": {
+        "nome": "Puzzy",
+        "imagem": os.path.join(ASSETS_DIR, "itens", "puzzy.png"),
+        "descricao": "Envenena um inimigo por 4 turnos (15 de dano/turno).",
+        "tipo_efeito": "veneno",
+        "veneno_dano": 15,
+        "veneno_turnos": 4,
+        "alvo": "inimigo",
+        "max_estoque": 2,
+    },
+    "barquinho": {
+        "nome": "Barquinho de Papel",
+        "imagem": os.path.join(ASSETS_DIR, "itens", "barquinho.png"),
+        "descricao": "Aumenta a velocidade de todos os aliados em 50% por 2 turnos.",
+        "tipo_efeito": "buff_spd_time",
+        "buff_mult": 1.5,
+        "buff_turnos": 2,
+        "alvo": "time",
+        "max_estoque": 2,
+    },
+    "coroa": {
+        "nome": "Coroa",
+        "imagem": os.path.join(ASSETS_DIR, "itens", "coroa.png"),
+        "descricao": "Cria um escudo de 30% do HP máx para todos os aliados.",
+        "tipo_efeito": "escudo_time",
+        "escudo_percent": 0.30,
+        "alvo": "time",
+        "max_estoque": 2,
+    },
+    "pote_de_ouro": {
+        "nome": "Pote de Ouro",
+        "imagem": os.path.join(ASSETS_DIR, "itens", "pote_de_ouro.png"),
+        "descricao": "Cura completamente toda a party (100% do HP máx).",
+        "tipo_efeito": "cura_total",
+        "alvo": "time",
+        "max_estoque": 1,
+    },
+    "grammy": {
+        "nome": "Grammy",
+        "imagem": os.path.join(ASSETS_DIR, "itens", "grammy.png"),
+        "descricao": "Aumenta ATK+5, DEF+3 e SPD+2 de um aliado permanentemente.",
+        "tipo_efeito": "buff_permanente",
+        "bonus_atk": 5, "bonus_defe": 3, "bonus_spd": 2,
+        "alvo": "aliado",
+        "max_estoque": 1,
+    },
+}
+
+ORDEM_ITENS = [
+    "torta_amora", "cha", "pocao_rajadao", "luva_ko",
+    "puzzy", "barquinho", "coroa", "pote_de_ouro", "grammy",
+]
+
+# Itens que aparecem como recompensa aleatória ao vencer (exceto grammy e pote_de_ouro que são raros)
+ITENS_COMUNS  = ["torta_amora", "cha", "pocao_rajadao", "luva_ko", "puzzy", "barquinho", "coroa"]
+ITENS_RAROS   = ["pote_de_ouro", "grammy"]

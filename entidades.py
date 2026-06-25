@@ -49,6 +49,7 @@ class Combatente:
         self.alvo_carga = None
         self.escudo = 0          # pontos de escudo (absorve dano antes do HP)
         self.paralisia_turnos = 0  # turnos de paralisia (não pode agir)
+        self.eh_boss = False       # marcador de boss
 
     # ------------------------------------------------------------------
     def spd_efetivo(self):
@@ -154,6 +155,30 @@ def criar_personagem(chave, bonus=None):
 
 def bonus_padrao():
     return {"hp": 0, "atk": 0, "defe": 0, "spd": 0, "nivel": 1}
+
+
+def criar_boss(dados_boss, fator_escala=1.0):
+    """Cria um Combatente boss a partir do dicionário de dados do boss,
+    aplicando fator de escala para rodadas mais avançadas."""
+    hp = int(dados_boss["hp"] * fator_escala)
+    atk = int(dados_boss["atk"] * fator_escala)
+    defe = int(dados_boss["defe"] * fator_escala)
+
+    c = Combatente(
+        nome=dados_boss["nome"],
+        tipo=dados_boss["tipo"],
+        hp_max=hp,
+        atk=atk,
+        defe=defe,
+        spd=dados_boss["spd"],
+        ataque_basico=dados_boss["ataque_basico"],
+        especial=dados_boss["especial"],
+        imagem=dados_boss["imagem"],
+        eh_jogador=False,
+        chave=dados_boss["chave"],
+    )
+    c.eh_boss = True
+    return c
 
 
 def aplicar_evolucao(bonus):

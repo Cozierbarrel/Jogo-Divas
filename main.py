@@ -11,7 +11,7 @@ import pygame
 
 from dados import (
     LARGURA_TELA, ALTURA_TELA, PERSONAGENS, ORDEM_PERSONAGENS,
-    CORES_TIPO, TIPOS,
+    CORES_TIPO, TIPOS, ITENS, ORDEM_ITENS, ITENS_COMUNS, ITENS_RAROS,
 )
 from entidades import (
     criar_personagem, bonus_padrao, aplicar_evolucao_personagem,
@@ -120,11 +120,16 @@ class Jogo:
         self.timer_log = 0.0
         self.intervalo_log = 0.55
 
-        self.alvo_pendente = None  # None | "atacar" | "especial"
+        self.alvo_pendente = None       # None | "atacar" | "especial"
+        self.item_pendente = None       # chave do item aguardando alvo
         self.evolucao_resultado = None  # (chave, incrementos) após escolha
+        self.recompensa_item = None     # chave do item ganho como recompensa
+
+        self.inventario = {}    # {chave_item: quantidade}
+        self.mostrar_itens = False  # painel de itens aberto?
 
         self.tempo_total = 0.0
-        self.sel_scroll_y = 0   # offset de scroll da tela de seleção (pixels)
+        self.sel_scroll_y = 0
 
     # ------------------------------------------------------------------
     # FLUXO ENTRE TELAS
@@ -139,7 +144,35 @@ class Jogo:
         self.bonus = {chave: bonus_padrao() for chave in self.ordem_selecao}
         self.party = [criar_personagem(chave, self.bonus[chave])
                        for chave in self.ordem_selecao]
+        self.inventario = {}
         self.preparar_nova_batalha()
+
+    def _ganhar_item_recompensa(self):
+        """Sorteia um item como recompensa de vitória e adiciona ao inventário."""
+        # boss dá item raro garantido; batalha normal tem 20% de chance de raro
+        b = self.batalha
+        if b and b.eh_rodada_boss:
+            pool = ITENS_RAROS
+        elif random.random() < 0.20:
+            pool = ITENS_RAROS
+        else:
+            pool = ITENS_COMUNS
+
+        chave = random.choice(pool)
+        dados = ITENS[chave]
+        estoque_atual = self.inventario.get(chave, 0)
+        if estoque_atual < dados["max_estoque"]:
+            self.inventario[chave] = estoque_atual + 1
+            self.recompensa_item = chave
+        else:
+            # tenta outro item se estoque cheio
+            outras = [c for c in pool if self.inventario.get(c, 0) < ITENS[c]["max_estoque"]]
+            if outras:
+                chave = random.choice(outras)
+                self.inventario[chave] = self.inventario.get(chave, 0) + 1
+                self.recompensa_item = chave
+            else:
+                self.recompensa_item = None
 
     def preparar_nova_batalha(self):
         self.batalha = Batalha(self.party, self.rodada)
@@ -155,6 +188,10 @@ class Jogo:
         self.party = []
         self.ordem_selecao = []
         self.batalha = None
+        self.inventario = {}
+        self.mostrar_itens = False
+        self.item_pendente = None
+        self.recompensa_item = None
         self.estado = "menu"
 
     # ------------------------------------------------------------------
@@ -190,6 +227,8 @@ class Jogo:
                 self.estado = "batalha"
             elif self.estado == "batalha":
                 self.clique_batalha(pos)
+            elif self.estado == "recompensa_item":
+                self.clique_recompensa_item(pos)
             elif self.estado == "evolucao":
                 self.clique_evolucao(pos)
             elif self.estado == "gameover":
@@ -420,27 +459,48 @@ class Jogo:
         fundo = imagem_cobertura(b.cenario["imagem"], (LARGURA_TELA, ALTURA_TELA))
         tela.blit(fundo, (0, 0))
         overlay = pygame.Surface((LARGURA_TELA, ALTURA_TELA), pygame.SRCALPHA)
-        overlay.fill((10, 10, 20, 165))
-        tela.blit(overlay, (0, 0))
 
-        desenhar_texto(tela, "Rodada {}".format(self.rodada), self.fontes.titulo,
-                        AMARELO, (LARGURA_TELA // 2, 180), centro=True, sombra=True)
-        desenhar_texto(tela, b.cenario["nome"], self.fontes.subtitulo, BRANCO,
-                        (LARGURA_TELA // 2, 250), centro=True, sombra=True)
+        if b.eh_rodada_boss:
+            overlay.fill((40, 0, 0, 175))
+            tela.blit(overlay, (0, 0))
+            pulso = 0.5 + 0.5 * math.sin(self.tempo_total * 4)
+            cor_boss = (int(255 * pulso), int(30 * pulso), int(30 * pulso))
+            desenhar_texto(tela, "⚠ BOSS ⚠", self.fontes.titulo, cor_boss,
+                            (LARGURA_TELA // 2, 100), centro=True, sombra=True)
+            desenhar_texto(tela, "Rodada {}".format(self.rodada), self.fontes.subtitulo,
+                            AMARELO, (LARGURA_TELA // 2, 175), centro=True, sombra=True)
 
-        # banner da facção inimiga
-        banner = imagem_cobertura(b.faccao["imagem"], (260, 260))
-        banner_rect = banner.get_rect(center=(LARGURA_TELA // 2, 410))
-        tela.blit(banner, banner_rect)
-        pygame.draw.rect(tela, VERMELHO, banner_rect, 3)
+            boss_img = imagem_cobertura(b.dados_boss["imagem"], (300, 300))
+            tela.blit(boss_img, (LARGURA_TELA // 2 - 150, 210))
+            pygame.draw.rect(tela, VERMELHO, (LARGURA_TELA // 2 - 150, 210, 300, 300), 4)
 
-        desenhar_texto(tela, "Inimigos aproximando-se:", self.fontes.normal, BRANCO,
-                        (LARGURA_TELA // 2, banner_rect.bottom + 30), centro=True, sombra=True)
+            desenhar_texto(tela, b.dados_boss["nome"], self.fontes.subtitulo, VERMELHO,
+                            (LARGURA_TELA // 2, 525), centro=True, sombra=True)
 
-        nomes = ", ".join(i.nome for i in b.inimigos)
-        for linha in quebrar_texto(nomes, self.fontes.normal, LARGURA_TELA - 200):
-            desenhar_texto(tela, linha, self.fontes.normal, VERMELHO,
-                            (LARGURA_TELA // 2, banner_rect.bottom + 65), centro=True, sombra=True)
+            fala = b.dados_boss.get("fala_entrada", "")
+            for linha in quebrar_texto('"{}"'.format(fala), self.fontes.normal, 700):
+                desenhar_texto(tela, linha, self.fontes.normal, CINZA_CLARO,
+                                (LARGURA_TELA // 2, 565), centro=True, sombra=True)
+        else:
+            overlay.fill((10, 10, 20, 165))
+            tela.blit(overlay, (0, 0))
+            desenhar_texto(tela, "Rodada {}".format(self.rodada), self.fontes.titulo,
+                            AMARELO, (LARGURA_TELA // 2, 180), centro=True, sombra=True)
+            desenhar_texto(tela, b.cenario["nome"], self.fontes.subtitulo, BRANCO,
+                            (LARGURA_TELA // 2, 250), centro=True, sombra=True)
+
+            banner = imagem_cobertura(b.faccao["imagem"], (260, 260))
+            banner_rect = banner.get_rect(center=(LARGURA_TELA // 2, 410))
+            tela.blit(banner, banner_rect)
+            pygame.draw.rect(tela, VERMELHO, banner_rect, 3)
+
+            desenhar_texto(tela, "Inimigos aproximando-se:", self.fontes.normal, BRANCO,
+                            (LARGURA_TELA // 2, banner_rect.bottom + 30), centro=True, sombra=True)
+
+            nomes = ", ".join(i.nome for i in b.inimigos)
+            for linha in quebrar_texto(nomes, self.fontes.normal, LARGURA_TELA - 200):
+                desenhar_texto(tela, linha, self.fontes.normal, VERMELHO,
+                                (LARGURA_TELA // 2, banner_rect.bottom + 65), centro=True, sombra=True)
 
         pulso = 0.5 + 0.5 * math.sin(self.tempo_total * 3)
         cor = (int(255 * pulso), int(255 * pulso), int(255 * pulso))
@@ -480,6 +540,59 @@ class Jogo:
     def _rect_botao_continuar_batalha(self):
         w, h = 260, 60
         return pygame.Rect((LARGURA_TELA - w) // 2, ALTURA_TELA // 2 + 60, w, h)
+
+    def _rect_botao_itens(self):
+        """Botão fixo no canto inferior do painel central para abrir/fechar itens."""
+        return pygame.Rect(BAT_CENTRO_X, ALTURA_TELA - 52, BAT_CENTRO_W, 42)
+
+    def _rect_painel_itens(self):
+        w, h = BAT_CENTRO_W, 280
+        return pygame.Rect(BAT_CENTRO_X, ALTURA_TELA - 52 - h - 6, w, h)
+
+    def _rects_slots_itens(self):
+        """Retorna lista de (chave, rect) para cada item no inventário."""
+        painel = self._rect_painel_itens()
+        chaves = [c for c in ORDEM_ITENS if c in self.inventario and self.inventario[c] > 0]
+        slots = []
+        slot_w, slot_h = 90, 90
+        gap = 10
+        x0 = painel.x + 10
+        y0 = painel.y + 40
+        for i, chave in enumerate(chaves):
+            col = i % 5
+            row = i // 5
+            x = x0 + col * (slot_w + gap)
+            y = y0 + row * (slot_h + gap)
+            slots.append((chave, pygame.Rect(x, y, slot_w, slot_h)))
+        return slots
+
+    def _clique_painel_itens(self, pos):
+        """Processa clique dentro do painel de itens. Retorna True se consumiu o clique."""
+        painel = self._rect_painel_itens()
+        botao = self._rect_botao_itens()
+        if not painel.collidepoint(pos) and not botao.collidepoint(pos):
+            return False
+        atual = self.batalha.aguardando_jogador()
+        if atual is None:
+            return True
+        for chave, rect in self._rects_slots_itens():
+            if rect.collidepoint(pos):
+                dados = ITENS[chave]
+                alvo_tipo = dados["alvo"]
+                if alvo_tipo == "time":
+                    ok = self.batalha.usar_item(chave, dados, None)
+                    if ok:
+                        self.inventario[chave] -= 1
+                        if self.inventario[chave] <= 0:
+                            del self.inventario[chave]
+                        self.mostrar_itens = False
+                        self.log_exibido = 0
+                        self.batalha.avancar_turno()
+                else:
+                    self.item_pendente = chave
+                    self.mostrar_itens = False
+                return True
+        return True
 
     def _desenhar_card_combatente(self, tela, rect, combatente, eh_jogador,
                                     destaque_turno=False, destaque_alvo=False):
@@ -590,6 +703,13 @@ class Jogo:
         desenhar_texto(tela, b.cenario["nome"], self.fontes.normal, BRANCO,
                         (LARGURA_TELA // 2, BAT_TOPO_H // 2), centro=True)
 
+        # indicador boss
+        if b.eh_rodada_boss:
+            pulso = 0.5 + 0.5 * math.sin(self.tempo_total * 4)
+            cor_b = (int(255 * pulso), int(60 * pulso), int(60 * pulso))
+            desenhar_texto(tela, "⚠ BOSS", self.fontes.normal_negrito, cor_b,
+                            (LARGURA_TELA // 2, BAT_TOPO_H // 2 + 20), centro=True)
+
         banner = imagem_cobertura(b.faccao["imagem"], (50, 50))
         banner_x = LARGURA_TELA - 20 - 50
         tela.blit(banner, (banner_x, 10))
@@ -688,6 +808,18 @@ class Jogo:
             botao_cancelar.desenhar(tela, self.fontes.normal, pygame.mouse.get_pos())
             return
 
+        if self.item_pendente is not None:
+            dados_i = ITENS[self.item_pendente]
+            texto_alvo = ("Escolha um inimigo" if dados_i["alvo"] == "inimigo"
+                           else "Escolha um aliado")
+            desenhar_texto(tela, "🎒 {} — {}".format(dados_i["nome"], texto_alvo),
+                            self.fontes.normal, AMARELO,
+                            (acao_rect.centerx, acao_rect.y + 80), centro=True)
+            botao_cancelar = Botao(self._rect_cancelar_alvo(), "Cancelar",
+                                    cor=(110, 60, 60), cor_hover=(150, 80, 80))
+            botao_cancelar.desenhar(tela, self.fontes.normal, pygame.mouse.get_pos())
+            return
+
         # botões de ação
         rects = self._rects_botoes_acao()
         especial = atual.especial
@@ -721,6 +853,46 @@ class Jogo:
                            ativo=ativo, sub_texto=sub)
             botao.desenhar(tela, self.fontes.normal_negrito, pygame.mouse.get_pos(),
                             fonte_pequena=self.fontes.minuscula)
+
+        # ---- botão e painel de itens ----
+        tem_itens = bool(self.inventario)
+        cor_btn = (100, 80, 40) if tem_itens else (50, 50, 55)
+        cor_hover_btn = (140, 110, 55) if tem_itens else (50, 50, 55)
+        label_itens = "🎒 Itens ({})".format(sum(self.inventario.values())) if tem_itens else "🎒 Sem itens"
+        btn_itens = Botao(self._rect_botao_itens(), label_itens,
+                           cor=cor_btn, cor_hover=cor_hover_btn, ativo=tem_itens)
+        btn_itens.desenhar(tela, self.fontes.pequena, pygame.mouse.get_pos())
+
+        if self.mostrar_itens and tem_itens:
+            painel_itens = self._rect_painel_itens()
+            desenhar_painel(tela, painel_itens, cor=(20, 18, 10, 230),
+                             borda_cor=AMARELO, borda_largura=2, raio=10)
+            desenhar_texto(tela, "Inventário — clique para usar (gasta 1 turno)",
+                            self.fontes.minuscula, AMARELO,
+                            (painel_itens.x + 10, painel_itens.y + 10))
+
+            from interface import imagem_escalada
+            for chave, slot_rect in self._rects_slots_itens():
+                dados_i = ITENS[chave]
+                mouse = pygame.mouse.get_pos()
+                hover = slot_rect.collidepoint(mouse)
+                cor_slot = (80, 70, 30) if hover else (45, 40, 18)
+                pygame.draw.rect(tela, cor_slot, slot_rect, border_radius=8)
+                pygame.draw.rect(tela, AMARELO if hover else (100, 90, 40),
+                                  slot_rect, 2, border_radius=8)
+                try:
+                    img = imagem_escalada(dados_i["imagem"], (60, 60))
+                    tela.blit(img, (slot_rect.x + 15, slot_rect.y + 5))
+                except Exception:
+                    pass
+                qtd = self.inventario.get(chave, 0)
+                desenhar_texto(tela, "x{}".format(qtd), self.fontes.minuscula,
+                                BRANCO, (slot_rect.right - 22, slot_rect.bottom - 18))
+                nome_i = dados_i["nome"]
+                if len(nome_i) > 10:
+                    nome_i = nome_i[:9] + "."
+                desenhar_texto(tela, nome_i, self.fontes.minuscula, CINZA_CLARO,
+                                (slot_rect.centerx, slot_rect.bottom - 4), centro=True)
 
     # ------------------------------------------------------------------
     def _alvo_no_clique(self, pos, tipo_acao, atual):
@@ -767,11 +939,24 @@ class Jogo:
         if b is None:
             return
 
+        # botão de itens (toggle painel)
+        if self._rect_botao_itens().collidepoint(pos) and not b.terminada:
+            if self.log_exibido >= len(b.log):
+                self.mostrar_itens = not self.mostrar_itens
+                self.item_pendente = None
+            return
+
+        # clique dentro do painel de itens
+        if self.mostrar_itens and not b.terminada and self.log_exibido >= len(b.log):
+            if self._clique_painel_itens(pos):
+                return
+
         if b.terminada and self.log_exibido >= len(b.log):
             if self._rect_botao_continuar_batalha().collidepoint(pos):
                 if b.vitoria:
+                    self._ganhar_item_recompensa()
                     self.evolucao_resultado = None
-                    self.estado = "evolucao"
+                    self.estado = "recompensa_item"
                 else:
                     self.estado = "gameover"
             return
@@ -782,6 +967,34 @@ class Jogo:
 
         atual = b.aguardando_jogador()
         if atual is None:
+            return
+
+        if self.item_pendente is not None:
+            if self._rect_cancelar_alvo().collidepoint(pos):
+                self.item_pendente = None
+                return
+            dados_item = ITENS[self.item_pendente]
+            alvo = None
+            if dados_item["alvo"] == "inimigo":
+                for i, inimigo in enumerate(b.inimigos):
+                    if inimigo.vivo and self._rect_card_inimigo(i, len(b.inimigos)).collidepoint(pos):
+                        alvo = inimigo
+                        break
+            elif dados_item["alvo"] == "aliado":
+                for i, heroi in enumerate(self.party):
+                    if heroi.vivo and self._rect_card_party(i).collidepoint(pos):
+                        alvo = heroi
+                        break
+            if alvo is not None or dados_item["alvo"] == "time":
+                ok = b.usar_item(self.item_pendente, dados_item, alvo)
+                if ok:
+                    self.inventario[self.item_pendente] -= 1
+                    if self.inventario[self.item_pendente] <= 0:
+                        del self.inventario[self.item_pendente]
+                    self.item_pendente = None
+                    self.mostrar_itens = False
+                    self.log_exibido = 0
+                    b.avancar_turno()
             return
 
         if self.alvo_pendente is not None:
@@ -803,6 +1016,53 @@ class Jogo:
             if ativo and rect.collidepoint(pos):
                 self._escolher_acao(atual, nome_acao)
                 return
+
+    # ------------------------------------------------------------------
+    # TELA: RECOMPENSA DE ITEM (entre vitória e evolução)
+    # ------------------------------------------------------------------
+    def desenhar_recompensa_item(self, tela):
+        fundo = imagem_cobertura(self.batalha.cenario["imagem"], (LARGURA_TELA, ALTURA_TELA))
+        tela.blit(fundo, (0, 0))
+        overlay = pygame.Surface((LARGURA_TELA, ALTURA_TELA), pygame.SRCALPHA)
+        overlay.fill((10, 20, 10, 185))
+        tela.blit(overlay, (0, 0))
+
+        desenhar_texto(tela, "Item obtido!", self.fontes.titulo, AMARELO,
+                        (LARGURA_TELA // 2, 120), centro=True, sombra=True)
+
+        if self.recompensa_item:
+            dados = ITENS[self.recompensa_item]
+            from interface import imagem_escalada
+            try:
+                img = imagem_escalada(dados["imagem"], (180, 180))
+                tela.blit(img, (LARGURA_TELA // 2 - 90, 200))
+            except Exception:
+                pass
+            desenhar_texto(tela, dados["nome"], self.fontes.subtitulo, BRANCO,
+                            (LARGURA_TELA // 2, 400), centro=True, sombra=True)
+            qtd = self.inventario.get(self.recompensa_item, 0)
+            desenhar_texto(tela, "Estoque: {}x".format(qtd), self.fontes.normal, AMARELO,
+                            (LARGURA_TELA // 2, 440), centro=True)
+            for i, linha in enumerate(quebrar_texto(dados["descricao"], self.fontes.normal,
+                                                     600)):
+                desenhar_texto(tela, linha, self.fontes.normal, CINZA_CLARO,
+                                (LARGURA_TELA // 2, 480 + i * 30), centro=True)
+        else:
+            desenhar_texto(tela, "(estoque já cheio — nenhum item ganho)",
+                            self.fontes.normal, CINZA, (LARGURA_TELA // 2, 380), centro=True)
+
+        w, h = 280, 58
+        botao = Botao(pygame.Rect((LARGURA_TELA - w) // 2, ALTURA_TELA - 110, w, h),
+                       "Continuar → Evolução",
+                       cor=(70, 150, 90), cor_hover=(90, 190, 110))
+        botao.desenhar(tela, self.fontes.grande, pygame.mouse.get_pos())
+
+    def clique_recompensa_item(self, pos):
+        w, h = 280, 58
+        rect = pygame.Rect((LARGURA_TELA - w) // 2, ALTURA_TELA - 110, w, h)
+        if rect.collidepoint(pos):
+            self.evolucao_resultado = None
+            self.estado = "evolucao"
 
     # ------------------------------------------------------------------
     # TELA: EVOLUÇÃO
@@ -964,6 +1224,8 @@ class Jogo:
             self.desenhar_transicao(tela)
         elif self.estado == "batalha":
             self.desenhar_batalha(tela)
+        elif self.estado == "recompensa_item":
+            self.desenhar_recompensa_item(tela)
         elif self.estado == "evolucao":
             self.desenhar_evolucao(tela)
         elif self.estado == "gameover":

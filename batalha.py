@@ -7,8 +7,8 @@ import random
 
 import pygame
 
-from entidades import gerar_inimigos, calcular_dano
-from dados import CENARIOS
+from entidades import gerar_inimigos, calcular_dano, criar_boss
+from dados import CENARIOS, boss_da_rodada
 
 # ---------------------------------------------------------------------------
 # Utilitário de som
@@ -37,7 +37,23 @@ class Batalha:
         for heroi in self.party:
             heroi.reiniciar_para_nova_batalha()
 
-        self.faccao, self.inimigos = gerar_inimigos(rodada)
+        # verifica se é rodada de boss
+        dados_boss = boss_da_rodada(rodada)
+        self.eh_rodada_boss = dados_boss is not None
+
+        if self.eh_rodada_boss:
+            fator = 1.0 + (rodada // 5 - 1) * 0.20  # +20% a cada ciclo de bosses
+            boss = criar_boss(dados_boss, fator_escala=fator)
+            self.faccao = {
+                "titulo": "BOSS: {}".format(boss.nome),
+                "imagem": boss.imagem,
+            }
+            self.inimigos = [boss]
+            self.dados_boss = dados_boss
+        else:
+            self.faccao, self.inimigos = gerar_inimigos(rodada)
+            self.dados_boss = None
+
         self.cenario = random.choice(CENARIOS)
 
         self.log = []
@@ -155,6 +171,109 @@ class Batalha:
                 return
             self.turno_idx += 1
             continue
+
+    def usar_item(self, chave_item, dados_item, alvo=None):
+        """Aplica o efeito de um item consumível. Retorna True se aplicado com sucesso."""
+        efeito = dados_item["tipo_efeito"]
+
+        if efeito == "cura":
+            if alvo is None or not alvo.vivo:
+                return False
+            valor = int(alvo.hp_max * dados_item.get("cura_percent", 0.4))
+            curado = alvo.curar(valor)
+            if alvo.eh_jogador and getattr(alvo, "som_cura", None):
+                _tocar_som(alvo.som_cura)
+            self.log.append("🍰 Usou {} em {}: recuperou {} de HP!".format(
+                dados_item["nome"], alvo.nome, curado))
+            return True
+
+        elif efeito == "antidoto":
+            if alvo is None or not alvo.vivo:
+                return False
+            alvo.veneno_turnos = 0
+            alvo.veneno_dano = 0
+            alvo.paralisia_turnos = 0
+            self.log.append("🍵 Usou {} em {}: veneno e paralisia removidos!".format(
+                dados_item["nome"], alvo.nome))
+            return True
+
+        elif efeito == "reset_cooldown":
+            if alvo is None or not alvo.vivo:
+                return False
+            alvo.cooldown_especial = 0
+            self.log.append("⚡ Usou {} em {}: especial pronto para usar!".format(
+                dados_item["nome"], alvo.nome))
+            return True
+
+        elif efeito == "dano_fixo":
+            if alvo is None or not alvo.vivo:
+                return False
+            dano = dados_item.get("dano", 60)
+            alvo.hp = max(0, alvo.hp - dano)
+            if alvo.hp <= 0:
+                alvo.vivo = False
+                self.log.append("🥊 Usou {} em {}: {} de dano fixo! {} foi derrotado(a)!".format(
+                    dados_item["nome"], alvo.nome, dano, alvo.nome))
+            else:
+                self.log.append("🥊 Usou {} em {}: {} de dano fixo!".format(
+                    dados_item["nome"], alvo.nome, dano))
+            self._checar_fim()
+            return True
+
+        elif efeito == "veneno":
+            if alvo is None or not alvo.vivo:
+                return False
+            alvo.aplicar_veneno(dados_item.get("veneno_dano", 15),
+                                 dados_item.get("veneno_turnos", 4))
+            self.log.append("🌸 Usou {} em {}: envenenado(a) por {} turnos!".format(
+                dados_item["nome"], alvo.nome, dados_item.get("veneno_turnos", 4)))
+            return True
+
+        elif efeito == "buff_spd_time":
+            aliados_vivos = self.party_vivos()
+            mult = dados_item.get("buff_mult", 1.5)
+            turnos = dados_item.get("buff_turnos", 2)
+            for aliado in aliados_vivos:
+                aliado.buff_spd_turnos = turnos
+                aliado.buff_spd_mult = mult
+            self.log.append("🚤 Usou {}: todo o time ficou muito mais ágil por {} turnos!".format(
+                dados_item["nome"], turnos))
+            return True
+
+        elif efeito == "escudo_time":
+            aliados_vivos = self.party_vivos()
+            percent = dados_item.get("escudo_percent", 0.30)
+            partes = []
+            for aliado in aliados_vivos:
+                val = max(1, int(aliado.hp_max * percent))
+                aliado.adicionar_escudo(val)
+                partes.append("{} (+{})".format(aliado.nome, val))
+            self.log.append("👑 Usou {}: escudos criados — {}!".format(
+                dados_item["nome"], ", ".join(partes)))
+            return True
+
+        elif efeito == "cura_total":
+            aliados_vivos = self.party_vivos()
+            for aliado in aliados_vivos:
+                aliado.curar(aliado.hp_max)
+            self.log.append("✨ Usou {}: toda a party foi completamente curada!".format(
+                dados_item["nome"]))
+            return True
+
+        elif efeito == "buff_permanente":
+            if alvo is None or not alvo.vivo:
+                return False
+            alvo.atk  += dados_item.get("bonus_atk", 5)
+            alvo.defe += dados_item.get("bonus_defe", 3)
+            alvo.spd  += dados_item.get("bonus_spd", 2)
+            self.log.append("🏆 Usou {} em {}: +{} ATK, +{} DEF, +{} SPD permanentes!".format(
+                dados_item["nome"], alvo.nome,
+                dados_item.get("bonus_atk", 5),
+                dados_item.get("bonus_defe", 3),
+                dados_item.get("bonus_spd", 2)))
+            return True
+
+        return False
 
     def executar_acao_jogador(self, tipo_acao, alvo=None):
         """tipo_acao: 'atacar' | 'especial' | 'defender'"""
