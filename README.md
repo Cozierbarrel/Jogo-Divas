@@ -200,26 +200,13 @@ Lollapalooza Brasil, Forte das Cinco Pontas (Olinda) e Mesas do Recife Antigo.
 
 ---
 
-## 9. Dicas de balanceamento
+## 9. Novas adições Release 2.0
 
-- Cuidar do tipo do seu time em relação ao tipo dos inimigos faz
-  grande diferença (1.5× ou 0.7× de dano).
-- **Clarice Falcão** é essencial em rodadas avançadas: escudo acumulado
-  pode ser a diferença entre sobreviver a um boss ou não.
-- **Defender** é útil para sobreviver enquanto aguarda cooldowns — o
-  dano é reduzido à metade naquele turno.
-- Guarde o **Pote de Ouro** para antes de um boss ou quando a party
-  estiver quase sem HP.
-- Use o **Grammy** em personagens frágeis como Urias ou Anavitória para
-  compensar o HP baixo nas rodadas mais longas.
-- O **Barquinho de Papel** antes de uma rodada difícil garante que suas
-  divas atuem antes dos inimigos por 2 turnos seguidos.
-- Priorize evoluir personagens com pouco HP (como **Urias**) para que
-  não sejam derrubadas rapidamente.
-- O veneno de **Luísa Sonza** e da **Puzzy** é ótimo contra bosses,
-  pois o dano contínuo se acumula independente de quem você atacar.
-
-Bom jogo e... que vença a melhor diva! 🏆
+- Sistema de Itens
+- Novos personagens (Pabllo Vittar, Gloria Groove e Clarice falcão)
+- Sistema de bosses (Neiff, Oruam, Belo, Mc Paiva e Mc Livinho)
+- Implementação de Sons para Pabllo
+- Novos efeitos (Escudo e Paralisia)
 
 ---
 
