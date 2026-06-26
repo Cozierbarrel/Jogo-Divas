@@ -7,9 +7,9 @@ import pygame
 
 from dados import CORES_TIPO
 
-# ---------------------------------------------------------------------------
+
 # CORES GERAIS
-# ---------------------------------------------------------------------------
+
 BRANCO = (245, 245, 245)
 PRETO = (15, 15, 20)
 CINZA = (90, 90, 100)
@@ -23,9 +23,8 @@ PAINEL = (20, 20, 30, 190)        # painel translúcido (RGBA)
 PAINEL_CLARO = (40, 40, 55, 210)  # painel translúcido mais claro
 
 
-# ---------------------------------------------------------------------------
 # FONTES
-# ---------------------------------------------------------------------------
+
 class Fontes:
     """Carrega e mantém as fontes usadas no jogo."""
 
@@ -54,9 +53,6 @@ class Fontes:
         self.minuscula = cria(15)
 
 
-# ---------------------------------------------------------------------------
-# CACHE DE IMAGENS
-# ---------------------------------------------------------------------------
 _cache_imagens = {}
 
 
@@ -106,9 +102,8 @@ def imagem_cobertura(caminho, tamanho):
     return superficie
 
 
-# ---------------------------------------------------------------------------
 # TEXTO
-# ---------------------------------------------------------------------------
+
 def desenhar_texto(tela, texto, fonte, cor, pos, centro=False, sombra=False):
     if sombra:
         superficie_sombra = fonte.render(texto, True, (0, 0, 0))
@@ -173,9 +168,8 @@ def cor_barra_hp(fracao):
     return VERMELHO
 
 
-# ---------------------------------------------------------------------------
 # BOTÕES
-# ---------------------------------------------------------------------------
+
 class Botao:
     def __init__(self, rect, texto, cor=(60, 70, 100), cor_hover=(90, 105, 150),
                  cor_texto=BRANCO, ativo=True, sub_texto=None):

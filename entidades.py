@@ -1,10 +1,4 @@
 
-"""
-Define o Combatente (jogador ou inimigo) e as funções de fábrica que
-criam personagens jogáveis (a partir de PERSONAGENS + bônus de evolução)
-e inimigos gerados proceduralmente.
-"""
-
 import random
 
 from dados import (
@@ -33,11 +27,9 @@ class Combatente:
         self.eh_jogador = eh_jogador
         self.chave = chave  # chave do dicionário PERSONAGENS (apenas heróis)
 
-        # sons específicos do personagem (apenas heróis)
         self.som_dano = None
         self.som_cura = None
 
-        # ---- estado de batalha (reiniciado a cada batalha) ----
         self.vivo = True
         self.defendendo = False
         self.cooldown_especial = 0
@@ -47,9 +39,9 @@ class Combatente:
         self.buff_spd_mult = 1.0
         self.carregando = False
         self.alvo_carga = None
-        self.escudo = 0          # pontos de escudo (absorve dano antes do HP)
-        self.paralisia_turnos = 0  # turnos de paralisia (não pode agir)
-        self.eh_boss = False       # marcador de boss
+        self.escudo = 0         
+        self.paralisia_turnos = 0  
+        self.eh_boss = False      
 
     # ------------------------------------------------------------------
     def spd_efetivo(self):
@@ -77,7 +69,6 @@ class Combatente:
         return self.hp - antes
 
     def adicionar_escudo(self, valor):
-        """Adiciona pontos de escudo ao combatente."""
         self.escudo = min(self.hp_max, self.escudo + valor)
         return valor
 
@@ -89,7 +80,6 @@ class Combatente:
         self.veneno_turnos = turnos
 
     def tick_veneno(self):
-        """Aplica o dano de veneno no início do turno do combatente."""
         if self.veneno_turnos > 0 and self.vivo:
             dano = min(self.hp, self.veneno_dano)
             self.hp -= dano
@@ -121,9 +111,7 @@ class Combatente:
         self.paralisia_turnos = 0
 
 
-# ---------------------------------------------------------------------------
-# FÁBRICA DE PERSONAGENS JOGÁVEIS
-# ---------------------------------------------------------------------------
+
 def criar_personagem(chave, bonus=None):
     """Cria um Combatente jogável a partir da chave em PERSONAGENS,
     aplicando os bônus acumulados de evolução (se houver)."""
@@ -158,8 +146,7 @@ def bonus_padrao():
 
 
 def criar_boss(dados_boss, fator_escala=1.0):
-    """Cria um Combatente boss a partir do dicionário de dados do boss,
-    aplicando fator de escala para rodadas mais avançadas."""
+
     hp = int(dados_boss["hp"] * fator_escala)
     atk = int(dados_boss["atk"] * fator_escala)
     defe = int(dados_boss["defe"] * fator_escala)
@@ -182,8 +169,7 @@ def criar_boss(dados_boss, fator_escala=1.0):
 
 
 def aplicar_evolucao(bonus):
-    """Aumenta os atributos de evolução de um personagem.
-    Retorna um dicionário com os incrementos aplicados (para exibir na UI)."""
+
     incrementos = {"hp": 14, "atk": 3, "defe": 2, "spd": 2}
     for atributo, valor in incrementos.items():
         bonus[atributo] += valor
@@ -192,9 +178,7 @@ def aplicar_evolucao(bonus):
 
 
 def aplicar_evolucao_personagem(personagem, bonus):
-    """Aplica os incrementos de evolução diretamente em um Combatente
-    já existente (mantendo a mesma instância) e atualiza o dicionário
-    de bônus persistente. Retorna os incrementos aplicados."""
+
     incrementos = aplicar_evolucao(bonus)
     personagem.hp_max += incrementos["hp"]
     personagem.hp += incrementos["hp"]
@@ -204,17 +188,13 @@ def aplicar_evolucao_personagem(personagem, bonus):
     return incrementos
 
 
-# ---------------------------------------------------------------------------
-# GERAÇÃO PROCEDURAL DE INIMIGOS
-# ---------------------------------------------------------------------------
+
 def gerar_nome_ataque():
     return "{} {}".format(random.choice(PREFIXOS_ATAQUE),
                            random.choice(SUFIXOS_ATAQUE))
 
 
 def gerar_ataques_inimigo(tipo_base, rodada):
-    """Cria o ataque básico e o especial (com cooldown) de um inimigo,
-    com nomes, tipos e multiplicadores aleatórios."""
 
     ataque_basico = {
         "nome": gerar_nome_ataque(),
@@ -232,15 +212,13 @@ def gerar_ataques_inimigo(tipo_base, rodada):
         "tipo_efeito": "dano",
     }
 
-    # Quanto mais avançada a rodada, maior a chance de o golpe especial
-    # do inimigo vir com veneno embutido.
+
     chance_veneno = min(0.15 + (rodada - 1) * 0.04, 0.55)
     if random.random() < chance_veneno:
         especial["tipo_efeito"] = "veneno"
         especial["veneno_dano"] = max(3, int(4 + (rodada - 1) * 0.6))
         especial["veneno_turnos"] = 2
 
-    # A partir da rodada 5, inimigos podem usar escudo no especial
     chance_escudo = min((rodada - 5) * 0.08, 0.40) if rodada >= 5 else 0
     if especial["tipo_efeito"] == "dano" and random.random() < chance_escudo:
         especial["tipo_efeito"] = "escudo_proprio"
@@ -292,9 +270,6 @@ def gerar_inimigos(rodada):
     return faccao, inimigos
 
 
-# ---------------------------------------------------------------------------
-# CÁLCULO DE DANO
-# ---------------------------------------------------------------------------
 def calcular_dano(atacante, defensor, ataque):
 
     tipo_ataque = ataque.get("tipo", atacante.tipo)

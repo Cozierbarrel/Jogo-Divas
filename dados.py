@@ -1,9 +1,3 @@
-"""
-Contém todos os dados estáticos do jogo: personagens jogáveis, tipos,
-facções inimigas, cenários e vocabulário para geração procedural de
-ataques inimigos.
-"""
-
 import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -12,12 +6,7 @@ ASSETS_DIR = os.path.join(BASE_DIR, "assets")
 LARGURA_TELA = 1280
 ALTURA_TELA = 720
 
-# ---------------------------------------------------------------------------
-# SISTEMA DE TIPOS (pedra-papel-tesoura)
-#   Letra      vence  Vocal
-#   Vocal      vence  Performance
-#   Performance vence Letra
-# ---------------------------------------------------------------------------
+
 TIPOS = ["Letra", "Vocal", "Performance"]
 
 VANTAGENS = {
@@ -42,17 +31,7 @@ def multiplicador_tipo(tipo_ataque, tipo_defensor):
     return 1.0
 
 
-# ---------------------------------------------------------------------------
-# PERSONAGENS JOGÁVEIS
-#
-# tipo_efeito do especial pode ser:
-#   "dano"      -> ataque comum (mais forte que o básico)
-#   "cura"      -> cura um aliado escolhido (cura_percent * HP máx do aliado)
-#   "veneno"    -> causa dano e envenena o alvo
-#   "buff_spd"  -> causa dano e aumenta a própria velocidade por X turnos
-#   "carga"     -> não causa dano neste turno; no próximo turno do
-#                  personagem, libera um golpe devastador automaticamente
-# ---------------------------------------------------------------------------
+
 PERSONAGENS = {
     "pabllo": {
         "nome": "Pabllo Vittar",
@@ -216,9 +195,9 @@ PERSONAGENS = {
 ORDEM_PERSONAGENS = ["pabllo", "gloria", "clarice", "liniker", "anavitoria", "anitta", "linn", "luisa", "urias"]
 
 
-# ---------------------------------------------------------------------------
+
 # Cenários
-# ---------------------------------------------------------------------------
+
 CENARIOS = [
     {
         "nome": "Auditório da UFRPE",
@@ -243,9 +222,9 @@ CENARIOS = [
 ]
 
 
-# ---------------------------------------------------------------------------
+
 # IInimigos
-# ---------------------------------------------------------------------------
+
 FACCOES_INIMIGAS = [
     {
         "titulo": "Diário de um Cafajeste",
@@ -280,9 +259,7 @@ FACCOES_INIMIGAS = [
 ]
 
 
-# ---------------------------------------------------------------------------
-# Feração automatica de inimigos
-# ---------------------------------------------------------------------------
+
 PREFIXOS_ATAQUE = [
     "Paredão", "Berro", "Trinca", "Refrão", "Grave", "Bonde", "Cria",
     "Quadradinho", "Embolada", "Mandela", "Tcheca", "Pancadão", "Repique",
@@ -295,10 +272,8 @@ SUFIXOS_ATAQUE = [
     "Sem Freio", "180 BPM", "da Madrugada",
 ]
 
-# ---------------------------------------------------------------------------
-# RODADAS DE BOSS (a cada 5 rodadas)
-# ---------------------------------------------------------------------------
-BOSS_RODADA = 5   # boss aparece a cada múltiplo desta rodada
+
+BOSS_RODADA = 5  
 
 BOSSES = [
     {
@@ -385,7 +360,6 @@ BOSSES = [
     },
 ]
 
-# Mapeamento rodada → boss (ciclo de 5 em 5)
 def boss_da_rodada(rodada):
     """Retorna o dicionário do boss se a rodada for múltipla de BOSS_RODADA, senão None."""
     if rodada % BOSS_RODADA == 0:
@@ -394,9 +368,6 @@ def boss_da_rodada(rodada):
     return None
 
 
-# ---------------------------------------------------------------------------
-# ITENS CONSUMÍVEIS
-# ---------------------------------------------------------------------------
 ITENS = {
     "torta_amora": {
         "nome": "Torta de Amora",
@@ -485,6 +456,5 @@ ORDEM_ITENS = [
     "puzzy", "barquinho", "coroa", "pote_de_ouro", "grammy",
 ]
 
-# Itens que aparecem como recompensa aleatória ao vencer (exceto grammy e pote_de_ouro que são raros)
 ITENS_COMUNS  = ["torta_amora", "cha", "pocao_rajadao", "luva_ko", "puzzy", "barquinho", "coroa"]
 ITENS_RAROS   = ["pote_de_ouro", "grammy"]

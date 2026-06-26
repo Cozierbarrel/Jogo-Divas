@@ -1,8 +1,3 @@
-"""
-Motor de batalha por turnos. a interface apenas chama os métodos públicos desta classe e 
-lê `self.log` para mostrar mensagens na tela.
-"""
-
 import random
 
 import pygame
@@ -10,14 +5,11 @@ import pygame
 from entidades import gerar_inimigos, calcular_dano, criar_boss
 from dados import CENARIOS, boss_da_rodada
 
-# ---------------------------------------------------------------------------
-# Utilitário de som
-# ---------------------------------------------------------------------------
+
 _cache_sons = {}
 
 
 def _tocar_som(caminho):
-    """Toca um arquivo de som sem bloquear; usa cache para evitar recarregamentos."""
     if not caminho:
         return
     try:
@@ -33,7 +25,6 @@ class Batalha:
         self.party = party
         self.rodada = rodada
 
-        # restaura HP/status de todos os heróis para a nova batalha
         for heroi in self.party:
             heroi.reiniciar_para_nova_batalha()
 
@@ -71,8 +62,6 @@ class Batalha:
 
     def _nova_rodada_interna(self):
         vivos = [c for c in self.todos_combatentes() if c.vivo]
-        # ordena por velocidade efetiva (decrescente); pequeno
-        # desempate aleatório para não ficar sempre na mesma ordem
         self.ordem = sorted(vivos, key=lambda c: (c.spd_efetivo(), random.random()),
                              reverse=True)
         self.turno_idx = -1
@@ -111,7 +100,6 @@ class Batalha:
         while True:
             seguranca += 1
             if seguranca > 500:
-                # válvula de segurança contra loops infinitos por bug
                 return
 
             if self._checar_fim():
