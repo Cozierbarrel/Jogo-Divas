@@ -122,6 +122,8 @@ atacante, do multiplicador do golpe e da `DEF` do defensor.
 | **Luísa Sonza** | Vocal | 95 | 12 | 11 | 13 | Especial **"Penhasco"** aplica **veneno** (dano contínuo por 3 turnos). |
 | **Urias** | Performance | 65 | 23 | 7 | 22 | Maior ATK e SPD do elenco, porém fragilíssima. Especial **"Cilada"** (x1.9) com cooldown curto. |
 
+![Tela Personagens](https://github.com/Cozierbarrel/Jogo-Divas/blob/main/__pycache__/Tela%20Personagens%20Nova.png)
+
 Os nomes dos golpes são inspirados em músicas conhecidas de cada artista.
 
 ---
@@ -190,6 +192,8 @@ boss. Derrotá-lo garante um **item raro**.
 | 15 | **Belo** | Vocal | Alta DEF; especial gera 30% de escudo próprio |
 | 20 | **MC Livinho** | Performance | Rapidíssimo; especial paralisa um herói |
 | 25 | **Paiva** | Letra | O mais tanque (500 HP); especial de carga x3.0 |
+
+![Tela bosses](https://github.com/Cozierbarrel/Jogo-Divas/blob/main/__pycache__/Tela%20boss.png)
 
 O ciclo reinicia a partir da rodada 30 com +20% nos atributos a cada volta.
 
